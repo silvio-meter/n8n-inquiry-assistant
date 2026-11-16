@@ -10,8 +10,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.2,
       "position": [
-        0,
-        0
+        -48,
+        96
       ],
       "id": "931e7f5a-01df-415e-a25c-640283005744",
       "name": "Webhook"
@@ -19,7 +19,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Ti si asistent koji razvrstava upite malom IT obrtu. Iz upita izvuci podatke i vrati SAMO JSON, bez ikakvog drugog teksta:\n{\"vrsta\": \"web stranica | webshop | automatizacija | održavanje | ostalo\", \"hitnost\": \"niska | srednja | visoka\", \"sazetak\": \"jedna kratka rečenica na hrvatskom\"}\n\nIme: {{ $json.body.ime }}\nEmail: {{ $json.body.email }}\nPoruka: {{ $json.body.poruka }}",
+        "text": "=Ti si asistent koji razvrstava upite malom IT obrtu. Iz upita izvuci podatke i vrati SAMO JSON, bez ikakvog drugog teksta:\n{\"vrsta\": \"web stranica | webshop | automatizacija | održavanje | ostalo\", \"hitnost\": \"niska | srednja | visoka\", \"sazetak\": \"jedna kratka rečenica na hrvatskom\"}\n\nIme: {{ $json.ime }}\nEmail: {{ $json.email }}\nPoruka: {{ $json.poruka }}",
         "hasOutputParser": true,
         "batching": {}
       },
@@ -70,9 +70,9 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Ime": "={{ $('Webhook').item.json.body.ime }}",
-            "Poruka": "={{ $('Webhook').item.json.body.poruka }}",
-            "Email": "={{ $('Webhook').item.json.body.email }}",
+            "Ime": "={{ $('Ulaz').item.json.ime }}",
+            "Poruka": "={{ $('Ulaz').item.json.poruka }}",
+            "Email": "={{ $('Ulaz').item.json.email }}",
             "Vrsta": "={{ $json.output.vrsta }}",
             "Hitnost": "={{ $json.output.hitnost }}",
             "Sazetak": "={{ $json.output.sazetak }}",
@@ -229,6 +229,55 @@
       ],
       "id": "d8ca1dcf-7d51-438c-9549-000828fcbd37",
       "name": "Basic LLM Chain1"
+    },
+    {
+      "parameters": {
+        "mailbox": "Upiti",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2.2,
+      "position": [
+        944,
+        256
+      ],
+      "id": "815df8a6-1b2d-4f64-9ea6-59d3172a679d",
+      "name": "Email Trigger (IMAP)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "44509c4f-f314-40bc-8a37-25a33330610e",
+              "name": "ime",
+              "value": "={{ $json.body ? $json.body.ime : $json.from.replace(/<.*>/, '').trim() }}",
+              "type": "string"
+            },
+            {
+              "id": "8e514829-fbeb-41ec-8115-6045cc1c2e20",
+              "name": "email",
+              "value": "={{ $json.body ? $json.body.email : ($json.from.match(/<(.+)>/)?.[1] ?? $json.from) }}",
+              "type": "string"
+            },
+            {
+              "id": "70541827-ba57-4dca-af8a-d920e689190a",
+              "name": "poruka",
+              "value": "={{ $json.body ? $json.body.poruka : ($json.subject + ': ' + ($json.textPlain || ($json.textHtml || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\\s+/g, ' ')).trim()) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1168,
+        208
+      ],
+      "id": "72523c8d-3ebe-4dbd-a9eb-6234ac4492d0",
+      "name": "Ulaz"
     }
   ],
   "connections": {
@@ -236,7 +285,7 @@
       "main": [
         [
           {
-            "node": "Basic LLM Chain",
+            "node": "Ulaz",
             "type": "main",
             "index": 0
           }
@@ -308,6 +357,28 @@
         [
           {
             "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Trigger (IMAP)": {
+      "main": [
+        [
+          {
+            "node": "Ulaz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ulaz": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
             "type": "main",
             "index": 0
           }
